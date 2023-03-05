@@ -1,0 +1,94 @@
+_schema-version: "3.2"
+ID: withdest
+description: Fiori elements app
+version: 0.0.1
+modules:
+- name: withdest-router
+  type: approuter.nodejs
+  path: router
+  requires:
+  - name: withdest-html5-repo-runtime
+  - name: withdest-uaa
+  - name: withdest-destination-service
+    group: destinations
+    properties:
+      forwardAuthToken: false
+      name: ui5
+      url: https://ui5.sap.com
+  parameters:
+    disk-quota: 256M
+    memory: 256M
+- name: withdest-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: withdest-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - withdestfiori.zip
+      name: withdestfiori
+      target-path: resources/
+- name: withdestfiori
+  type: html5
+  path: withdestfiori
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+resources:
+- name: withdest-uaa
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      tenant-mode: dedicated
+      xsappname: withdest-${space-guid}
+      oauth2-configuration:
+          redirect-uris:
+            - https://4076b228trial-adminoperators-jrzbss9p-ncr-withdest-router.cfapps.us10-001.hana.ondemand.com/login/callback
+    service: xsuaa
+    service-plan: application
+    path: ./xs-security.json
+- name: withdest-html5-repo-runtime
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-plan: app-runtime
+- name: withdest-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: false
+      init_data:
+        instance:
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          existing_destinations_policy: update
+      version: 1.0.0
+    service: destination
+    service-name: withdest-destination-service
+    service-plan: lite
+- name: withdest-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: withdest-html5-srv
+    service-plan: app-host
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm install
